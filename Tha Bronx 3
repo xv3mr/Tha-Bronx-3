@@ -1,0 +1,332 @@
+You see this script ? 
+
+-- FULL PHILLY STREETZ SCRIPT WITH AIMBOT SMOOTHNESS + CONFIG TAB + ALL FEATURES
+
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- SETTINGS
+local AimbotEnabled = false
+local AimbotSmoothness = 0
+local AimbotLockOn = false
+local SilentAimEnabled = false
+local TriggerbotEnabled = false
+local ESPHighlightEnabled = false
+local ESPNameEnabled = false
+local ESPHealthEnabled = false
+local ESPDistanceEnabled = false
+local TeamCheck = false
+local AimPart = "Head"
+local FOVRadius = 100
+local FOVColor = Color3.fromRGB(255,255,255)
+local WalkSpeedValue = 16
+local NoclipEnabled = false
+local IsMobile = UIS.TouchEnabled
+local MobileLockButtonEnabled = true
+local ShowFOVCircle = false
+local FOVMode = "Center"
+local AimLockKey = Enum.KeyCode.E
+
+local ESPColor = Color3.fromRGB(255,0,0)
+local NameColor = Color3.fromRGB(255,255,255)
+local HealthColor = Color3.fromRGB(0,255,0)
+local DistanceColor = Color3.fromRGB(255,255,0)
+
+-- FOV CIRCLE
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = ShowFOVCircle
+FOVCircle.Thickness = 1
+FOVCircle.NumSides = 100
+FOVCircle.Filled = false
+FOVCircle.Color = FOVColor
+FOVCircle.Radius = FOVRadius
+
+RunService.RenderStepped:Connect(function()
+    FOVCircle.Visible = ShowFOVCircle
+    FOVCircle.Color = FOVColor
+    FOVCircle.Radius = FOVRadius
+    FOVCircle.Position = (FOVMode == "Center") and Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2) or UIS:GetMouseLocation()
+end)
+
+-- GET CLOSEST TARGET
+local function getClosestTarget()
+    local closest, shortest = nil, math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(AimPart) then
+            if TeamCheck and player.Team == LocalPlayer.Team then continue end
+            local screenPos, onScreen = Camera:WorldToViewportPoint(player.Character[AimPart].Position)
+            if not onScreen then continue end
+            local ref = (FOVMode == "Center") and Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2) or UIS:GetMouseLocation()
+            local dist = (Vector2.new(screenPos.X, screenPos.Y) - ref).Magnitude
+            if dist < shortest and dist <= FOVRadius then
+                shortest = dist
+                closest = player
+            end
+        end
+    end
+    return closest
+end
+
+-- AIMBOT LOCK FUNCTION WITH SMOOTHNESS
+local function lockOn()
+    local target = getClosestTarget()
+    if target and target.Character and target.Character:FindFirstChild(AimPart) then
+        local goal = target.Character[AimPart].Position
+        local current = Camera.CFrame.Position
+        local newCFrame
+        if AimbotSmoothness == 0 then
+            newCFrame = CFrame.new(current, goal)
+        else
+            local lerpAmount = math.clamp(AimbotSmoothness / 100, 0.01, 1)
+            newCFrame = Camera.CFrame:Lerp(CFrame.new(current, goal), lerpAmount)
+        end
+        Camera.CFrame = newCFrame
+    end
+end
+
+-- TOGGLE AIMLOCK KEY
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == AimLockKey then
+        AimbotLockOn = not AimbotLockOn
+    end
+end)
+
+-- MOBILE AIM BUTTON
+local function createMobileButton()
+    local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+    gui.Name = "MobileAimBtn"
+    gui.ResetOnSpawn = false
+
+    local btn = Instance.new("TextButton", gui)
+    btn.Size = UDim2.new(0, 80, 0, 80)
+    btn.Position = UDim2.new(0.88, 0, 0.5, -40)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    btn.Text = "🎯"
+    btn.TextScaled = true
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.BackgroundTransparency = 0.3
+    btn.Font = Enum.Font.GothamBlack
+    btn.ClipsDescendants = true
+    btn.BorderSizePixel = 0
+    btn.Name = "AimLockButton"
+
+    btn.MouseButton1Click:Connect(function()
+        if AimbotEnabled then
+            AimbotLockOn = not AimbotLockOn
+        end
+    end)
+
+    local corner = Instance.new("UICorner", btn)
+    corner.CornerRadius = UDim.new(1, 0)
+
+    btn.Visible = MobileLockButtonEnabled
+end
+
+if IsMobile and MobileLockButtonEnabled then
+    createMobileButton()
+end
+
+-- Noclip loop
+local function noclipLoop()
+    while NoclipEnabled do
+        RunService.Stepped:Wait()
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end
+
+-- Triggerbot
+RunService.RenderStepped:Connect(function()
+    if TriggerbotEnabled then
+        local target = getClosestTarget()
+        if target and target.Character and target.Character:FindFirstChild(AimPart) then
+            local part = target.Character[AimPart]
+            local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 500)
+            local hit, _ = workspace:FindPartOnRay(ray, LocalPlayer.Character)
+            if hit and hit:IsDescendantOf(target.Character) then
+                pcall(function() mouse1click() end)
+            end
+        end
+    end
+end)
+
+-- WalkSpeed handler
+local function setWalkSpeed(speed)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = speed
+    end
+end
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+    char:WaitForChild("Humanoid").WalkSpeed = WalkSpeedValue
+end)
+
+-- ESP SYSTEM
+local highlights, overheads = {}, {}
+
+local function updateESP()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Humanoid") then
+            local char = p.Character
+            local head = char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")
+
+            -- Highlight
+            if ESPHighlightEnabled then
+                if not highlights[p] then
+                    local h = Instance.new("Highlight")
+                    h.FillColor = ESPColor
+                    h.OutlineColor = Color3.new(1, 1, 1)
+                    h.FillTransparency = 0.5
+                    h.OutlineTransparency = 0
+                    h.Adornee = char
+                    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    h.Parent = game.CoreGui
+                    highlights[p] = h
+                else
+                    highlights[p].FillColor = ESPColor
+                end
+            elseif highlights[p] then
+                highlights[p]:Destroy()
+                highlights[p] = nil
+            end
+
+            -- Overhead info
+            if ESPNameEnabled or ESPHealthEnabled or ESPDistanceEnabled then
+                if not overheads[p] then
+                    local bill = Instance.new("BillboardGui")
+                    bill.Size = UDim2.new(0, 120, 0, 50)
+                    bill.StudsOffset = Vector3.new(0, 3, 0)
+                    bill.AlwaysOnTop = true
+                    bill.Parent = head
+                    bill.Name = "ESPInfo"
+
+                    local name = Instance.new("TextLabel", bill)
+                    name.Name = "NameText"
+                    name.Size = UDim2.new(1, 0, 0.33, 0)
+                    name.BackgroundTransparency = 1
+                    name.TextScaled = true
+                    name.Font = Enum.Font.SourceSansBold
+                    name.TextStrokeTransparency = 0.5
+
+                    local hp = name:Clone()
+                    hp.Name = "HPText"
+                    hp.Position = UDim2.new(0, 0, 0.33, 0)
+                    hp.Parent = bill
+
+                    local dist = name:Clone()
+                    dist.Name = "DistText"
+                    dist.Position = UDim2.new(0, 0, 0.66, 0)
+                    dist.Parent = bill
+
+                    overheads[p] = {gui = bill, name = name, hp = hp, dist = dist}
+                end
+
+                local hum = char:FindFirstChild("Humanoid")
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                local gui = overheads[p]
+
+                gui.name.Text = ESPNameEnabled and p.Name or ""
+                gui.name.TextColor3 = NameColor
+
+                gui.hp.Text = ESPHealthEnabled and ("HP: "..math.floor(hum.Health)) or ""
+                gui.hp.TextColor3 = HealthColor
+
+                if ESPDistanceEnabled and hrp then
+                    local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
+                    gui.dist.Text = "Dist: "..math.floor(dist)
+                else
+                    gui.dist.Text = ""
+                end
+                gui.dist.TextColor3 = DistanceColor
+            elseif overheads[p] then
+                overheads[p].gui:Destroy()
+                overheads[p] = nil
+            end
+        else
+            if highlights[p] then
+                highlights[p]:Destroy()
+                highlights[p] = nil
+            end
+            if overheads[p] then
+                overheads[p].gui:Destroy()
+                overheads[p] = nil
+            end
+        end
+    end
+end
+
+-- MAIN LOOP
+RunService.RenderStepped:Connect(function()
+    updateESP()
+    if AimbotEnabled and AimbotLockOn then
+        lockOn()
+    end
+end)
+
+-- GUI
+
+local Window = Rayfield:CreateWindow({
+    Name = "🔥 Philly Streetz Cheat Hub",
+    LoadingTitle = "Injecting...",
+    LoadingSubtitle = "by Wind Beach",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "PhillyStreetz",
+        FileName = "cheat_settings"
+    },
+    KeySystem = false
+})
+
+local Main = Window:CreateTab("Main")
+Main:CreateToggle({Name = "Enable Aimbot", CurrentValue = false, Callback = function(v) AimbotEnabled = v end})
+Main:CreateSlider({Name = "Smoothness", Range = {0, 100}, Increment = 1, CurrentValue = AimbotSmoothness, Callback = function(v) AimbotSmoothness = v end})
+Main:CreateToggle({Name = "Silent Aim (WIP)", CurrentValue = false, Callback = function(v) SilentAimEnabled = v end})
+Main:CreateToggle({Name = "Triggerbot", CurrentValue = false, Callback = function(v) TriggerbotEnabled = v end})
+Main:CreateSlider({Name = "FOV Radius", Range = {50, 500}, Increment = 5, CurrentValue = FOVRadius, Callback = function(v) FOVRadius = v end})
+Main:CreateColorPicker({Name = "FOV Color", Color = FOVColor, Callback = function(c) FOVColor = c end})
+Main:CreateDropdown({Name = "FOV Mode", Options = {"Follow Mouse", "Center"}, CurrentOption = "Follow Mouse", Callback = function(v) FOVMode = (v == "Center") and "Center" or "FollowMouse" end})
+Main:CreateDropdown({Name = "Aim Part", Options = {"Head", "HumanoidRootPart", "UpperTorso"}, CurrentOption = "Head", Callback = function(p) AimPart = p end})
+Main:CreateToggle({Name = "Team Check", CurrentValue = false, Callback = function(v) TeamCheck = v end})
+Main:CreateKeybind({Name = "Aimbot Keybind (Toggle Lock)", CurrentKeybind = "E", HoldToInteract = false, Callback = function(k) AimLockKey = k end})
+Main:CreateToggle({Name = "Show FOV Circle", CurrentValue = ShowFOVCircle, Callback = function(v) ShowFOVCircle = v end})
+
+local ESPTab = Window:CreateTab("ESP")
+ESPTab:CreateToggle({Name = "ESP Highlight", CurrentValue = false, Callback = function(v) ESPHighlightEnabled = v end})
+ESPTab:CreateToggle({Name = "ESP Name", CurrentValue = false, Callback = function(v) ESPNameEnabled = v end})
+ESPTab:CreateToggle({Name = "ESP Health", CurrentValue = false, Callback = function(v) ESPHealthEnabled = v end})
+ESPTab:CreateToggle({Name = "ESP Distance", CurrentValue = false, Callback = function(v) ESPDistanceEnabled = v end})
+ESPTab:CreateColorPicker({Name = "ESP Highlight Color", Color = ESPColor, Callback = function(c) ESPColor = c end})
+ESPTab:CreateColorPicker({Name = "ESP Name Color", Color = NameColor, Callback = function(c) NameColor = c end})
+ESPTab:CreateColorPicker({Name = "ESP Health Color", Color = HealthColor, Callback = function(c) HealthColor = c end})
+ESPTab:CreateColorPicker({Name = "ESP Distance Color", Color = DistanceColor, Callback = function(c) DistanceColor = c end})
+
+local Move = Window:CreateTab("Movement")
+Move:CreateToggle({Name = "Enable Noclip", CurrentValue = false, Callback = function(v) NoclipEnabled = v if v then coroutine.wrap(noclipLoop)() end end})
+Move:CreateSlider({Name = "WalkSpeed", Range = {16, 300}, Increment = 1, CurrentValue = WalkSpeedValue, Callback = function(v) WalkSpeedValue = v setWalkSpeed(v) end})
+
+local Mobile = Window:CreateTab("Mobile")
+Mobile:CreateToggle({Name = "Mobile Aim Button", CurrentValue = MobileLockButtonEnabled, Callback = function(v)
+    MobileLockButtonEnabled = v
+    local gui = LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("MobileAimBtn")
+    if gui then gui.AimLockButton.Visible = v end
+end})
+
+-- SETTINGS TAB
+local Settings = Window:CreateTab("Settings")
+Settings:CreateKeybind({Name = "Toggle UI", CurrentKeybind = "RightShift", HoldToInteract = false, Callback = function() Rayfield:Toggle() end})
+
+-- CONFIG TAB (last tab)
+local Config = Window:CreateTab("Config")
+Config:CreateParagraph({Title = "Save/Load Settings", Content = "Use buttons below to save or load your cheat settings."})
+Config:CreateButton({Name = "💾 Save Config", Callback = function() Rayfield:SaveConfiguration() end})
+Config:CreateButton({Name = "📂 Load Config", Callback = function() Rayfield:LoadConfiguration() end})
